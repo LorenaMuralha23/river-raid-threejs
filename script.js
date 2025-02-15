@@ -49,13 +49,33 @@ const roadLimit = 4;
 
 // Criando obstáculos
 const obstacles = [];
+const obstacleLoader = new THREE.GLTFLoader();
+
+const alphaBase = 1.0; // Base para o fator de dificuldade
+let alpha = alphaBase;
+const maxAlpha = 3.0; // Dificuldade máxima
+const alphaIncrement = 0.01; // Taxa de aumento da dificuldade
+
 function createObstacle() {
-    const obstacleGeometry = new THREE.BoxGeometry(1, 1, 1);
-    const obstacleMaterial = new THREE.MeshBasicMaterial({ color: 0x0000ff });
-    const obstacle = new THREE.Mesh(obstacleGeometry, obstacleMaterial);
-    obstacle.position.set((Math.random() * 8) - 4, 1, -10);
-    scene.add(obstacle);
-    obstacles.push(obstacle);
+    if (!plane) return;
+    
+    alpha = Math.min(maxAlpha, alpha + alphaIncrement); // Aumenta gradualmente a dificuldade
+    const numObstacles = Math.ceil(alpha * Math.random() * 3); // Define o número de obstáculos
+    
+    for (let i = 0; i < numObstacles; i++) {
+        const loader = new THREE.GLTFLoader();
+        loader.load('objects/tnt.glb', (gltf) => {
+            const obstacle = gltf.scene;
+            obstacle.scale.set(0.05, 0.05, 0.05);
+            
+            // Posiciona obstáculos dinamicamente com base no avião
+            const offsetX = (Math.random() - 0.5) * 4 * alpha;
+            obstacle.position.set(plane.position.x + offsetX, 1, plane.position.z - 10);
+            
+            scene.add(obstacle);
+            obstacles.push(obstacle);
+        });
+    }
 }
 
 setInterval(createObstacle, 2000);
