@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Three.js Car on Road</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            font-family: Arial, sans-serif;
+        }
+
+        canvas {
+            display: block;
+        }
+
+        #lives {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            color: white;
+            font-size: 20px;
+            background: rgba(0, 0, 0, 0.5);
+            padding: 10px;
+            border-radius: 5px;
+        }
+    </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+</head>
+
+<body>
+    <div id="lives">Vidas: 5</div>
+    <script>
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.body.appendChild(renderer.domElement);
+
+        // Criando a pista
+        const roadGeometry = new THREE.PlaneGeometry(10, 50);
+        const roadMaterial = new THREE.MeshBasicMaterial({ color: 0x333333, side: THREE.DoubleSide });
+        const road = new THREE.Mesh(roadGeometry, roadMaterial);
+        road.rotation.x = -Math.PI / 2;
+        road.position.z = -5;
+        scene.add(road);
+
+        // Criando o carrinho
+        const carGeometry = new THREE.BoxGeometry(1, 0.5, 2);
+        const carMaterial = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+        const car = new THREE.Mesh(carGeometry, carMaterial);
+        car.position.y = 0.3;
+        scene.add(car);
+
+        camera.position.set(0, 2, 5);
+        camera.lookAt(car.position);
+
+        let carSpeed = 0;
+        let lives = 5;
+        document.getElementById("lives").innerText = `Vidas: ${lives}`;
+        const roadLimit = 4;
+
+        // Criando obstáculos
+        const obstacles = [];
+        function createObstacle() {
+            const obstacleGeometry = new THREE.BoxGeometry(1, 0.5, 1);
+            const obstacleMaterial = new THREE.MeshBasicMaterial({ color: 0x0000ff });
+            const obstacle = new THREE.Mesh(obstacleGeometry, obstacleMaterial);
+            obstacle.position.set((Math.random() * 8) - 4, 0.3, -10);
+            scene.add(obstacle);
+            obstacles.push(obstacle);
+        }
+
+        setInterval(createObstacle, 2000);
+
+        window.addEventListener("keydown", (event) => {
+            if (event.key === "ArrowLeft") {
+                carSpeed = -0.2;
+            } else if (event.key === "ArrowRight") {
+                carSpeed = 0.2;
+            }
+        });
+
+        window.addEventListener("keyup", () => {
+            carSpeed = 0;
+        });
+
+        function checkCollision(car, obstacle) {
+            return Math.abs(car.position.x - obstacle.position.x) < 1 && Math.abs(car.position.z - obstacle.position.z) < 1.5;
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            road.position.z += 0.1;
+            if (road.position.z > 0) road.position.z = -5;
+
+            car.position.x += carSpeed;
+            if (car.position.x > roadLimit) car.position.x = roadLimit;
+            if (car.position.x < -roadLimit) car.position.x = -roadLimit;
+
+            // Movendo obstáculos e verificando colisão
+            obstacles.forEach((obstacle, index) => {
+                obstacle.position.z += 0.1;
+                if (obstacle.position.z > 5) {
+                    scene.remove(obstacle);
+                    obstacles.splice(index, 1);
+                } else if (checkCollision(car, obstacle)) {
+                    scene.remove(obstacle);
+                    obstacles.splice(index, 1);
+                    lives--;
+                    document.getElementById("lives").innerText = `Vidas: ${lives}`;
+                    if (lives <= 0) {
+                        alert("Game Over!");
+                        location.reload();
+                    }
+                }
+            });
+
+            renderer.render(scene, camera);
+        }
+
+        animate();
+    </script>
+</body>
+
+</html>
