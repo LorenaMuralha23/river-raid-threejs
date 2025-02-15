@@ -12,7 +12,6 @@ const renderer = new THREE.WebGLRenderer();
 renderer.setSize(window.innerWidth, window.innerHeight);
 document.body.appendChild(renderer.domElement);
 
-// Criando o chão
 const roadGeometry = new THREE.PlaneGeometry(10, 50);
 const roadMaterial = new THREE.MeshBasicMaterial({ color: 0x0D5DA8, side: THREE.DoubleSide });
 const road = new THREE.Mesh(roadGeometry, roadMaterial);
@@ -20,7 +19,6 @@ road.rotation.x = -Math.PI / 2;
 road.position.set(0, 0.1, -5);
 scene.add(road);
 
-// Criando a grama ao lado da pista
 const grassGeometry = new THREE.PlaneGeometry(100, 50);
 const grassMaterial = new THREE.MeshBasicMaterial({ color: 0x157E00, side: THREE.DoubleSide });
 const grass = new THREE.Mesh(grassGeometry, grassMaterial);
@@ -28,7 +26,6 @@ grass.rotation.x = -Math.PI / 2;
 grass.position.set(0, 0, -5);
 scene.add(grass);
 
-// Carregando o avião
 const loader = new THREE.GLTFLoader();
 let plane;
 loader.load('objects/cartoon_plane.glb', (gltf) => {
@@ -47,38 +44,53 @@ let lives = 5;
 document.getElementById("lives").innerText = `Vidas: ${lives}`;
 const roadLimit = 4;
 
-// Criando obstáculos
 const obstacles = [];
-const obstacleLoader = new THREE.GLTFLoader();
-
-const alphaBase = 1.0; // Base para o fator de dificuldade
+const fuels = [];
+const alphaBase = 1.0;
 let alpha = alphaBase;
-const maxAlpha = 3.0; // Dificuldade máxima
-const alphaIncrement = 0.01; // Taxa de aumento da dificuldade
+const maxAlpha = 3.0;
+const alphaIncrement = 0.01;
 
 function createObstacle() {
     if (!plane) return;
-    
-    alpha = Math.min(maxAlpha, alpha + alphaIncrement); // Aumenta gradualmente a dificuldade
-    const numObstacles = Math.ceil(alpha * Math.random() * 3); // Define o número de obstáculos
+    alpha = Math.min(maxAlpha, alpha + alphaIncrement);
+    const numObstacles = Math.ceil(alpha * Math.random() * 3);
     
     for (let i = 0; i < numObstacles; i++) {
         const loader = new THREE.GLTFLoader();
         loader.load('objects/tnt.glb', (gltf) => {
             const obstacle = gltf.scene;
             obstacle.scale.set(0.05, 0.05, 0.05);
-            
-            // Posiciona obstáculos dinamicamente com base no avião
             const offsetX = (Math.random() - 0.5) * 4 * alpha;
             obstacle.position.set(plane.position.x + offsetX, 1, plane.position.z - 10);
-            
             scene.add(obstacle);
             obstacles.push(obstacle);
         });
     }
 }
 
+function createFuel() {
+    if (!plane) return;
+    const loader = new THREE.GLTFLoader();
+    loader.load('objects/fuel_tank.glb', (gltf) => {
+        const fuel = gltf.scene;
+        fuel.scale.set(0.01, 0.01, 0.01);
+        
+        let offsetX;
+        let validPosition = false;
+        while (!validPosition) {
+            offsetX = (Math.random() - 0.5) * 4 * alpha;
+            validPosition = !obstacles.some(obstacle => Math.abs(obstacle.position.x - offsetX) < 1);
+        }
+        
+        fuel.position.set(plane.position.x + offsetX, 1, plane.position.z - 10);
+        scene.add(fuel);
+        fuels.push(fuel);
+    });
+}
+
 setInterval(createObstacle, 2000);
+// setInterval(createFuel, 5000);
 
 window.addEventListener("keydown", (event) => {
     if (event.key === "ArrowLeft") {
@@ -92,8 +104,8 @@ window.addEventListener("keyup", () => {
     planeSpeed = 0;
 });
 
-function checkCollision(plane, obstacle) {
-    return plane && Math.abs(plane.position.x - obstacle.position.x) < 1 && Math.abs(plane.position.z - obstacle.position.z) < 1.5;
+function checkCollision(plane, object) {
+    return plane && Math.abs(plane.position.x - object.position.x) < 1 && Math.abs(plane.position.z - object.position.z) < 1.5;
 }
 
 function animate() {
@@ -109,7 +121,6 @@ function animate() {
         if (plane.position.x < -roadLimit) plane.position.x = -roadLimit;
     }
 
-    // Movendo obstáculos e verificando colisão
     obstacles.forEach((obstacle, index) => {
         obstacle.position.z += 0.1;
         if (obstacle.position.z > 5) {
@@ -124,6 +135,19 @@ function animate() {
                 alert("Game Over!");
                 location.reload();
             }
+        }
+    });
+
+    fuels.forEach((fuel, index) => {
+        fuel.position.z += 0.1;
+        if (fuel.position.z > 5) {
+            scene.remove(fuel);
+            fuels.splice(index, 1);
+        } else if (checkCollision(plane, fuel)) {
+            scene.remove(fuel);
+            fuels.splice(index, 1);
+            lives++;
+            document.getElementById("lives").innerText = `Vidas: ${lives}`;
         }
     });
 
