@@ -3,8 +3,6 @@ scene.background = new THREE.Color(0x87ceeb);
 const light = new THREE.DirectionalLight(0xffffff, 0.8);
 light.position.set(0, 5, 1);
 scene.add(light);
-// const lightHelper = new THREE.DirectionalLightHelper(light, 1);
-// scene.add(lightHelper);
 
 const ambientLight = new THREE.AmbientLight(0xffffff, 1);
 scene.add(ambientLight);
@@ -82,24 +80,87 @@ const maxAlpha = 3.0;
 const alphaIncrement = 0.01;
 
 function createExplosion(position) {
+  const particleCount = 100;
   const particleGeometry = new THREE.BufferGeometry();
-  const positions = new Float32Array(100 * 3);
-  for (let i = 0; i < 100; i++) {
-    positions[i * 3] = position.x + (Math.random() - 0.5) * 2;
-    positions[i * 3 + 1] = position.y + (Math.random() - 0.5) * 2;
-    positions[i * 3 + 2] = position.z + (Math.random() - 0.5) * 2;
+  const positions = new Float32Array(particleCount * 3);
+  const velocities = new Float32Array(particleCount * 3);
+  const colors = new Float32Array(particleCount * 3); // Armazena cores RGB
+
+  for (let i = 0; i < particleCount; i++) {
+    positions[i * 3] = position.x;
+    positions[i * 3 + 1] = position.y;
+    positions[i * 3 + 2] = position.z;
+
+    // Velocidade aleatória para cada partícula
+    velocities[i * 3] = (Math.random() - 0.5) * 0.2;
+    velocities[i * 3 + 1] = (Math.random() - 0.5) * 0.2;
+    velocities[i * 3 + 2] = (Math.random() - 0.5) * 0.2;
+
+    // Definição de cor variando entre vermelho, laranja e amarelo
+    const colorChoice = Math.random();
+    if (colorChoice < 0.33) {
+      colors[i * 3] = 1.0; // Vermelho
+      colors[i * 3 + 1] = Math.random() * 0.5; // Pouco verde
+      colors[i * 3 + 2] = 0.0; // Sem azul
+    } else if (colorChoice < 0.66) {
+      colors[i * 3] = 1.0; // Laranja (mais vermelho)
+      colors[i * 3 + 1] = 0.5 + Math.random() * 0.5; // Meio verde
+      colors[i * 3 + 2] = 0.0;
+    } else {
+      colors[i * 3] = 1.0; // Amarelo (vermelho + verde)
+      colors[i * 3 + 1] = 1.0;
+      colors[i * 3 + 2] = 0.0;
+    }
   }
+
   particleGeometry.setAttribute(
     "position",
     new THREE.BufferAttribute(positions, 3)
   );
+  particleGeometry.setAttribute("color", new THREE.BufferAttribute(colors, 3));
+
   const particleMaterial = new THREE.PointsMaterial({
-    color: 0xffa500,
-    size: 0.1,
+    vertexColors: true, // Habilita cores individuais para cada partícula
+    size: 0.15,
+    transparent: true,
+    opacity: 1.0,
   });
+
   const particles = new THREE.Points(particleGeometry, particleMaterial);
   scene.add(particles);
-  setTimeout(() => scene.remove(particles), 1000);
+
+  let time = 0;
+  const explosionDuration = 50; // Duração da explosão em frames
+
+  function animateParticles() {
+    if (time >= explosionDuration) {
+      scene.remove(particles);
+      return;
+    }
+
+    const positionsArray = particleGeometry.attributes.position.array;
+    const colorsArray = particleGeometry.attributes.color.array;
+
+    for (let i = 0; i < particleCount; i++) {
+      positionsArray[i * 3] += velocities[i * 3];
+      positionsArray[i * 3 + 1] += velocities[i * 3 + 1];
+      positionsArray[i * 3 + 2] += velocities[i * 3 + 2];
+
+      // Escurecendo as partículas conforme o tempo passa
+      colorsArray[i * 3] = Math.max(0, colorsArray[i * 3] - 0.02);
+      colorsArray[i * 3 + 1] = Math.max(0, colorsArray[i * 3 + 1] - 0.02);
+      colorsArray[i * 3 + 2] = Math.max(0, colorsArray[i * 3 + 2] - 0.02);
+    }
+
+    particleMaterial.opacity -= 0.02;
+    particleGeometry.attributes.position.needsUpdate = true;
+    particleGeometry.attributes.color.needsUpdate = true;
+
+    time++;
+    requestAnimationFrame(animateParticles);
+  }
+
+  animateParticles();
 }
 
 function createObstacle() {
@@ -172,4 +233,5 @@ function animate() {
 
   renderer.render(scene, camera);
 }
+
 animate();
