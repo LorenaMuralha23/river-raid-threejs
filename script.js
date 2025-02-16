@@ -163,6 +163,78 @@ function createExplosion(position) {
   animateParticles();
 }
 
+function createFuelTank() {
+  if (!plane) return;
+  loader.load("objects/fuel_tank.glb", (gltf) => {
+    const fuel = gltf.scene;
+    fuel.scale.set(0.01, 0.01, 0.01);
+    fuel.position.set(
+      (Math.random() * 8 - 4), // Posição X aleatória dentro dos limites da pista
+      1, // Posição Y fixa
+      plane.position.z - 20 // Posição Z atrás do avião
+    );
+    scene.add(fuel);
+    fuels.push(fuel);
+  });
+}
+
+setInterval(createFuelTank, Math.random() * (12000 - 8000) + 8000);
+
+function createLifeParticles(position) {
+  const particleCount = 50; // Número de partículas
+  const particleGeometry = new THREE.BufferGeometry();
+  const positions = new Float32Array(particleCount * 3);
+  const colors = new Float32Array(particleCount * 3); // Cores das partículas
+
+  // Criação das partículas
+  for (let i = 0; i < particleCount; i++) {
+    positions[i * 3] = position.x + (Math.random() - 0.5) * 2; // Posição X aleatória
+    positions[i * 3 + 1] = position.y + Math.random() * 2; // Posição Y aleatória
+    positions[i * 3 + 2] = position.z + (Math.random() - 0.5) * 2; // Posição Z aleatória
+
+    // Cores em tons de verde
+    colors[i * 3] = 0.0; // Vermelho (0)
+    colors[i * 3 + 1] = Math.random() * 0.5 + 0.5; // Verde (0.5 a 1.0)
+    colors[i * 3 + 2] = 0.0; // Azul (0)
+  }
+
+  particleGeometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+  particleGeometry.setAttribute("color", new THREE.BufferAttribute(colors, 3));
+
+  const particleMaterial = new THREE.PointsMaterial({
+    vertexColors: true, // Usa cores individuais para cada partícula
+    size: 0.15,
+    transparent: true,
+    opacity: 1.0,
+  });
+
+  const particles = new THREE.Points(particleGeometry, particleMaterial);
+  scene.add(particles);
+
+  // Animação das partículas
+  let time = 0;
+  const duration = 50; // Duração da animação em frames
+
+  function animateParticles() {
+    if (time >= duration) {
+      scene.remove(particles);
+      return;
+    }
+
+    const positionsArray = particleGeometry.attributes.position.array;
+    for (let i = 0; i < particleCount; i++) {
+      positionsArray[i * 3 + 1] += 0.05; // Move as partículas para cima
+    }
+
+    particleMaterial.opacity -= 0.02; // Diminui a opacidade das partículas
+    particleGeometry.attributes.position.needsUpdate = true;
+    time++;
+    requestAnimationFrame(animateParticles);
+  }
+
+  animateParticles();
+}
+
 function createObstacle() {
   if (!plane) return;
   alpha = Math.min(maxAlpha, alpha + alphaIncrement);
@@ -213,6 +285,22 @@ function animate() {
     if (plane.position.x < -roadLimit) plane.position.x = -roadLimit;
   }
 
+  // Movendo e verificando colisões com os tanques de combustível
+  fuels.forEach((fuel, index) => {
+    fuel.position.z += 0.1; // Move o tanque junto com o cenário
+    if (fuel.position.z > 5) {
+      scene.remove(fuel); // Remove o tanque se ele sair da tela
+      fuels.splice(index, 1);
+    } else if (checkCollision(plane, fuel)) {
+      createLifeParticles(fuel.position); // Cria partículas ao coletar o tanque
+      scene.remove(fuel); // Remove o tanque após a colisão
+      fuels.splice(index, 1);
+      lives++; // Aumenta a vida do jogador
+      document.getElementById("lives").innerText = `Vidas: ${lives}`;
+    }
+  });
+
+  // Movendo e verificando colisões com os obstáculos
   obstacles.forEach((obstacle, index) => {
     obstacle.position.z += 0.1;
     if (obstacle.position.z > 5) {
