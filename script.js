@@ -1,7 +1,18 @@
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x87ceeb);
+
+// Configuração da luz direcional
 const light = new THREE.DirectionalLight(0xffffff, 0.8);
 light.position.set(0, 5, 1);
+light.castShadow = true; // Ativa sombras para a luz
+light.shadow.mapSize.width = 1024; // Aumenta a resolução do mapa de sombras
+light.shadow.mapSize.height = 1024;
+light.shadow.camera.near = 0.5;
+light.shadow.camera.far = 500;
+light.shadow.camera.left = -10; // Ajusta a área de projeção de sombras
+light.shadow.camera.right = 10;
+light.shadow.camera.top = 10;
+light.shadow.camera.bottom = -10;
 scene.add(light);
 
 const ambientLight = new THREE.AmbientLight(0xffffff, 1);
@@ -20,12 +31,6 @@ document.body.appendChild(renderer.domElement);
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
-light.castShadow = true;
-light.shadow.mapSize.width = 512;
-light.shadow.mapSize.height = 512;
-light.shadow.camera.near = 0.5;
-light.shadow.camera.far = 500;
-
 const textureLoader = new THREE.TextureLoader();
 const roadTexture = textureLoader.load("water-texture.jpg");
 roadTexture.wrapS = THREE.RepeatWrapping;
@@ -40,6 +45,7 @@ const roadMaterial = new THREE.MeshStandardMaterial({
 const road = new THREE.Mesh(roadGeometry, roadMaterial);
 road.rotation.x = -Math.PI / 2;
 road.position.set(0, 0.1, -5);
+road.receiveShadow = true; // A estrada recebe sombras
 scene.add(road);
 
 const grassGeometry = new THREE.PlaneGeometry(100, 50);
@@ -50,13 +56,20 @@ const grassMaterial = new THREE.MeshBasicMaterial({
 const grass = new THREE.Mesh(grassGeometry, grassMaterial);
 grass.rotation.x = -Math.PI / 2;
 grass.position.set(0, 0, -5);
+grass.receiveShadow = true; // A grama recebe sombras
 scene.add(grass);
 
+// Carrega o avião
 const loader = new THREE.GLTFLoader();
 let plane;
 loader.load("objects/cartoon_plane.glb", (gltf) => {
   plane = gltf.scene;
-  plane.castShadow = true;
+  plane.traverse((child) => {
+    if (child.isMesh) {
+      child.castShadow = true; // Ativa sombras para o avião
+      child.receiveShadow = true; // O avião também pode receber sombras
+    }
+  });
   plane.position.set(0, 1, 0);
   plane.scale.set(0.08, 0.08, 0.08);
   plane.rotation.y = Math.PI;
@@ -64,8 +77,6 @@ loader.load("objects/cartoon_plane.glb", (gltf) => {
   camera.lookAt(plane.position);
 });
 
-road.receiveShadow = true;
-grass.receiveShadow = true;
 camera.position.set(0, 3, 5);
 
 let planeSpeed = 0;
@@ -173,6 +184,12 @@ function createFuelTank() {
       1, // Posição Y fixa
       plane.position.z - 20 // Posição Z atrás do avião
     );
+    fuel.traverse((child) => {
+      if (child.isMesh) {
+        child.castShadow = true; // Ativa sombras para o avião
+        child.receiveShadow = true; // O avião também pode receber sombras
+      }
+    });
     scene.add(fuel);
     fuels.push(fuel);
   });
@@ -250,6 +267,12 @@ function createObstacle() {
         1,
         plane.position.z - 10
       );
+      obstacle.traverse((child) => {
+        if (child.isMesh) {
+          child.castShadow = true; // Ativa sombras para o avião
+          child.receiveShadow = true; // O avião também pode receber sombras
+        }
+      });
       scene.add(obstacle);
       obstacles.push(obstacle);
     });
